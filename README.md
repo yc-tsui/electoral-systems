@@ -4,4 +4,6 @@ Inspired by Ka Yee-Ping's [Voting Simulation Visualizations](http://zesty.ca/vot
 
 It outputs an html file. Open it and you get an image. This is how it looks like
 
+![example](https://raw.githubusercontent.com/yc-tsui/electoral-systems/master/example_output.png)
+
 [Altair](http://altair-viz.github.io/) is used instead of matplotlib like most would expect. I find its syntax much better than matplotlib. This is how we should be plotting graphs.
