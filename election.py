@@ -63,8 +63,9 @@ def draw_checker(list_of_votes, max_pos): ##
     NoDrawException
         There is no zero or draw exception.
     '''
-    drawer = np.delete(list_of_votes, max_pos)  # This is a bottleneck
-    if list_of_votes[max_pos] in drawer:
+    maximum = list_of_votes[max_pos]
+    search = np.where(list_of_votes == maximum)[0]
+    if len(search) > 1:
         if list_of_votes[max_pos] == 0:
             raise ZeroException("There is a zero")
         else:
