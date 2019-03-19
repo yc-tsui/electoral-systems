@@ -1,4 +1,4 @@
-# Electoral Systems
+# Electoral Systems [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/yc-tsui/electoral-systems/master)
 
 Inspired by Ka Yee-Ping's [Voting Simulation Visualizations](http://zesty.ca/voting/sim/) and Nicky Case's [To build a better ballot](https://ncase.me/ballot/)
 
