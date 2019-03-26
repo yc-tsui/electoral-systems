@@ -54,5 +54,4 @@ chart = alt.layer(
     labelFontSize=20
 )
 
-#chart.save('/Users/Yuitere/Nextcloud/Maths/Elections/chart.html')  #mac
-chart.save('C:/Users/Yuitere/Nextcloud/Maths/Elections/chart.html')  #windows
+#chart.save("HTML file path here") 
