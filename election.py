@@ -31,7 +31,7 @@ CAND_DICT = {
 # Error handling
 class ZeroException(Exception): pass
 class DrawException(Exception): pass
-class NoDrawException(Exception): pass
+#class NoDrawException(Exception): pass
 
 
 # BALLOT CALCULATOR FUNCTIONS
@@ -70,8 +70,6 @@ def draw_checker(list_of_votes, max_pos): ##
             raise ZeroException("There is a zero")
         else:
             raise DrawException("There is a draw")
-    else:
-        raise NoDrawException()
 ##
 
 
@@ -106,13 +104,12 @@ def winner_calc(list_of_votes, max_pos, position): ##
         #print("There is a zero")
         #print(list_of_votes)
         winner = "Zero"
-    except NoDrawException:
+    else: #except NoDrawException:
         # In case the 0th cand has 0 list_of_votes
         winner_pos = position[max_pos]
         winner = CAND_NAMES[winner_pos]
 
-    finally:
-        return winner
+    return winner
 ##
 
 
@@ -134,7 +131,7 @@ def counter(system_list): ##
     '''
     try:
         counts = np.bincount(system_list)
-        position = np.nonzero(counts)[0]
+        position = np.where(counts)[0]
         list_of_votes = counts[position]
         max_pos = np.argmax(list_of_votes)
     # When there is no winner/approved
@@ -143,7 +140,8 @@ def counter(system_list): ##
         winner = "None"
         return winner
     # winner_calc() is called only if there is a winner
-    return winner_calc(list_of_votes, max_pos, position)
+    else:
+        return winner_calc(list_of_votes, max_pos, position)
 ##
 # *******************************************************************
 
@@ -169,11 +167,11 @@ def approval(dist_list): ##
 def borda(d_sorted): ##
     borda_list = np.array(
         [
-            np.transpose(np.nonzero(d_sorted == 0))[:, 1],
-            np.transpose(np.nonzero(d_sorted == 1))[:, 1],
-            np.transpose(np.nonzero(d_sorted == 2))[:, 1],
+            np.transpose(np.where(d_sorted == 0))[:, 1],
+            np.transpose(np.where(d_sorted == 1))[:, 1],
+            np.transpose(np.where(d_sorted == 2))[:, 1],
         ]
-    )  # Equivalent to np.argwhere but slightly faster
+    )
     borda_sum = np.sum(borda_list, axis=1)
     borda_winner_pos = np.argmin(borda_sum)
     b_winner = CAND_NAMES[borda_winner_pos]
