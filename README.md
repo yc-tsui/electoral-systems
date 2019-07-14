@@ -22,7 +22,7 @@ In the Juypter version of the code, `plotting.py` is made into a separate functi
 2. In `election.py`, change the values of `N_VOTER_IN_GROUP` and `NUM_OF_ELECTIONS` to suit yourself
     - Optional: change the coordinates of the candidates in `C_X` and `C_Y`
 3. In `plotting.py`, add the path name for your desired html output
-4. Run `plotting.py`. It will run election.py, plot the results and save it in your html file
+4. Run `plotting.py`. It will run `election.py`, plot the results and save it in your html file
 
 
 ## Prerequisites
