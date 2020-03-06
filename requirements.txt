@@ -1,5 +1,5 @@
-numpy==1.16.*
-pandas==0.24.*
-altair==3.*
-vega==2.1.*
-ipywidgets==7.4.*
+numpy==1.18.*
+pandas==1.*
+altair==4.*
+vega==3.*
+ipywidgets==7.5.*
