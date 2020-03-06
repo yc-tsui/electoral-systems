@@ -1,3 +1,5 @@
+#pylint: disable=E251, C0103, R1705, C0330
+
 '''
 Contains all the functions to generate ballots, calculate winner, detect draws
 and zeros. Finally it runs a simulation with a hard-coded number of voters and
@@ -15,6 +17,8 @@ Definitions of essential terms
 '''
 
 import numpy as np
+import pandas as pd
+import altair as alt
 from tqdm import tqdm
 
 # CANDIDATES
@@ -28,92 +32,7 @@ CAND_DICT = {
     "name": CAND_NAMES
 }
 
-# Error handling
-class ZeroException(Exception): pass
-class DrawException(Exception): pass
-#class NoDrawException(Exception): pass
-
-
-# BALLOT CALCULATOR FUNCTIONS
-# ===================================================================
-# Draw checker
-def draw_checker(list_of_votes, max_pos): ##
-    '''
-    Check if there is a draw or zero by raising exceptions
-
-    Parameters
-    ----------
-    list_of_votes: np.array
-        Total number of votes for each candidate
-    max_pos: int
-        Position of the maximum number in list, equal to position of candidate
-        with the most votes.
-
-    Returns
-    -------
-    NoReturn
-        This function only raises draw or zero exceptions
-
-    Raises
-    ------
-    ZeroException
-        The total number of votes for every single candidate is zero
-    DrawException
-        There are at least two candidates with the same number of votes
-    NoDrawException
-        There is no zero or draw exception.
-    '''
-    maximum = list_of_votes[max_pos]
-    search = np.where(list_of_votes == maximum)[0]
-    if len(search) > 1:
-        if list_of_votes[max_pos] == 0:
-            raise ZeroException("There is a zero")
-        else:
-            raise DrawException("There is a draw")
-##
-
-
-def winner_calc(list_of_votes, max_pos, position): ##
-    '''
-    First check for draws, then returns the winning candidate or a draw
-
-    Parameters
-    ----------
-    list_of_votes: np.array
-        Array of total number of votes for each candidate
-    max_pos: int
-        Position of the maximum number in list -- position of candidate with
-        the most votes.
-    position: np.array
-        The positions of all candidates ordered by number of votes received.
-        For example, if candidate 2 > candidate 1: [2, 1, 0]
-
-    Returns
-    -------
-    winner: str
-        Returns the name of the winning candidate
-    '''
-    try:
-        draw_checker(list_of_votes, max_pos)
-
-    except DrawException:
-        #print("There is a draw")
-        #print(list_of_votes)
-        winner = "Draw"
-    except ZeroException:
-        #print("There is a zero")
-        #print(list_of_votes)
-        winner = "Zero"
-    else: #except NoDrawException:
-        # In case the 0th cand has 0 list_of_votes
-        winner_pos = position[max_pos]
-        winner = CAND_NAMES[winner_pos]
-
-    return winner
-##
-
-
-def counter(system_list): ##
+def counter(system_list):
     '''
     Counts the total number of votes received by each candidate and return a
     winner, or a draw if one is detected
@@ -126,27 +45,25 @@ def counter(system_list): ##
     Returns
     -------
     winner: str
-       Returns the name of the winning candidate. Note that it calls the
-       winner_calc function and returns its output.
+       Returns the name of the winning candidate.
     '''
-    try:
+    if system_list.size != 0:
         counts = np.bincount(system_list)
         position = np.where(counts)[0]
         list_of_votes = counts[position]
-        max_pos = np.argmax(list_of_votes)
-    # When there is no winner/approved
-    # Error: "Attempt to get argmax of an empty sequence"
-    except ValueError:
+        # Finds max, random tie break if there is a draw
+        max_pos = np.random.choice(np.flatnonzero(list_of_votes == list_of_votes.max()))
+
+        winner_pos = position[max_pos]
+        winner = CAND_NAMES[winner_pos]
+        return winner
+    else: # There are no votes
         winner = "None"
         return winner
-    # winner_calc() is called only if there is a winner
-    else:
-        return winner_calc(list_of_votes, max_pos, position)
 ##
-# *******************************************************************
 
 
-# BALLOT GENERATOR FUNCTIONS
+# ELECTORAL SYSTEM FUNCTIONS
 # ===================================================================
 def fptp(dist_list): ##
     fptp_votes = np.argmin(dist_list, axis=1)
@@ -156,6 +73,7 @@ def fptp(dist_list): ##
 
 
 def approval(dist_list): ##
+    # TODO: variable approval radius
     APPROVAL_RADIUS = 2
     approved = np.array(np.where(dist_list <= APPROVAL_RADIUS))
     approval_list = approved[1]
@@ -165,6 +83,7 @@ def approval(dist_list): ##
 
 
 def borda(d_sorted): ##
+    # FIXME: only works for 3 candidates
     borda_list = np.array(
         [
             np.transpose(np.where(d_sorted == 0))[:, 1],
@@ -180,6 +99,7 @@ def borda(d_sorted): ##
 
 
 def score(dist_list): ##
+    # TODO: variable radius and score; interprete those as inequalities
     # radius = [0.5, 1, 2, 3]
     # score = [10, 8, 7, 5, 0]
     # Actually makes a new array not replace
@@ -190,10 +110,13 @@ def score(dist_list): ##
     np.place(score_list, dist_list <= 0.5, [10])
 
     score_sum = np.einsum('ij->j', score_list)  # Sum all columns
-    score_winner_pos = np.argmax(score_sum)
-    #print(score_list, score_sum)
-    s_winner = winner_calc(score_sum, score_winner_pos, [0, 1, 2])
-    return s_winner
+    score_winner_pos = np.random.choice(np.flatnonzero(score_sum == score_sum.max()))
+    if score_sum.size != 0:
+        winner = CAND_NAMES[score_winner_pos]
+        return winner
+    else: # There are no votes
+        winner = "None"
+        return winner
 ##
 # *******************************************************************
 
@@ -264,26 +187,96 @@ def election(
 ##
 
 
-# RUN ELECTION
-N_VOTER_IN_GROUP = 1000
-STDEV = 1
+def loop_elections(c_x, c_y):
+    N_VOTER_IN_GROUP = 1000
+    STDEV = 1
 
-NUM_OF_ELECTIONS = 100
-result = []
+    NUM_OF_ELECTIONS = 10**4 # Only even powers
+    result = []
 
-with tqdm(total=NUM_OF_ELECTIONS) as pbar:
-    loop_number = 0
+    grid = np.array(
+            np.meshgrid(
+                    np.linspace(-2, 2, int(np.sqrt(NUM_OF_ELECTIONS))),
+                    np.linspace(-2, 2, int(np.sqrt(NUM_OF_ELECTIONS)))
+            )).T.reshape(-1,2).T
 
-    while loop_number < NUM_OF_ELECTIONS: ##
-        result.append(
-            election(
-                np.random.normal(0, 1),
-                np.random.normal(0, 1),
-                N_VOTER_IN_GROUP,
-                STDEV
+    with tqdm(total=NUM_OF_ELECTIONS) as pbar:
+        loop_number = 0
+        while loop_number < NUM_OF_ELECTIONS: ##
+            result.append(
+                election(
+                    grid[0][loop_number],
+                    grid[1][loop_number],
+                    N_VOTER_IN_GROUP,
+                    STDEV,
+                    candidate_x=c_x,
+                    candidate_y=c_y
+                )
             )
-        )
-        pbar.update(1)
-        loop_number += 1
+            pbar.update(1)
+            loop_number += 1
     ##
-v_x, v_y, fptp_winner, approval_winner, borda_winner, score_winner = zip(*result)
+    v_x, v_y, fptp_winner, approval_winner, borda_winner, score_winner = zip(*result)
+    return (v_x, v_y, fptp_winner, approval_winner, borda_winner, score_winner)
+
+def plotter(v_x, v_y, fptp_winner, approval_winner, borda_winner, score_winner):
+    SYSTEM = ["fptp_winner", "approval_winner", "borda_winner", "score_winner"]
+    COLOR_NAMES = ["Draw", "Red", "Blue", "Green"]
+    COLORS = ["#6b6b6b", "red", "#12a9e5", "#12e551"]
+    COLOR_SCALE = alt.Scale(domain=COLOR_NAMES, range=COLORS)
+
+    v_df = pd.DataFrame({
+        "v_x": v_x,
+        "v_y": v_y,
+        "fptp_winner": fptp_winner,
+        "approval_winner": approval_winner,
+        "borda_winner": borda_winner,
+        "score_winner": score_winner
+    })
+    df = pd.melt(v_df, id_vars=["v_x", "v_y"], var_name="SYSTEM", value_name="winner")
+
+    c_df = pd.DataFrame(CAND_DICT)
+    c_df = pd.concat([c_df, c_df, c_df, c_df], sort=False, ignore_index=True)
+    c_df["SYSTEM"] = SYSTEM * 3
+    df = pd.concat([df, c_df], sort=False, ignore_index=True)
+
+    candidate_plot = alt.Chart().mark_point(filled=True).encode(
+        alt.X('C_X', title="x"),
+        alt.Y('C_Y', title="y"),
+        alt.Color('name', legend=None, scale=COLOR_SCALE),
+        alt.Shape('name', legend=alt.Legend(title="Candidates")),
+        alt.StrokeValue("black"),
+        opacity=alt.value(1),
+        size=alt.value(150)
+    )
+
+    voter_plot = alt.Chart().mark_circle().encode(
+        x = 'v_x',
+        y = 'v_y',
+        color = alt.Color('winner:N', legend=None, scale=COLOR_SCALE)
+    ).properties(
+        width=200
+    )
+
+    chart = alt.layer(
+        voter_plot,
+        candidate_plot,
+        data=df
+    ).facet(
+        column='SYSTEM:N'
+    ).configure_header(
+        labelFontSize=20
+    )
+
+    return chart
+# End function
+
+
+alt.data_transformers.disable_max_rows()
+def plot():
+    v_x, v_y, fptp_winner, approval_winner, borda_winner, score_winner = loop_elections(C_X, C_Y)
+    chart = plotter(v_x, v_y, fptp_winner, approval_winner, borda_winner, score_winner)
+    print("Please wait...")
+    chart.save('chart.png', webdriver='firefox')
+
+plot()
